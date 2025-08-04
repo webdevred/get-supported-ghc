@@ -2,7 +2,6 @@ const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
-const githubCore = require("@actions/core");
 
 async function runCommand(cmd) {
   return new Promise((resolve, reject) => {
@@ -85,7 +84,8 @@ async function main() {
     const latestGhc = validVersions[0].version;
 
     console.log(`Latest GHC under base < ${baseUpperBound}: ${latestGhc}`);
-    githubCore.setOutput("ghcVersion", latestGhc);
+    const outputPath = process.env.GITHUB_OUTPUT;
+    fs.appendFileSync(outputPath, `ghc-version=${latestGhc}\n`);
   } catch (err) {
     console.error(err);
     process.exit(1);
