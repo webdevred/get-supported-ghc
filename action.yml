@@ -1,8 +1,11 @@
 name: Get Supported GHC Version
-description: Finds the latest GHC version that supports the base upper bound in your .cabal file.
+description: Finds the latest GHC version that supports the base upper bound in your
+  .cabal file.
+
 runs:
-  using: 'node20'
-  main: 'dist/gindex.js'
+  using: node20
+  main: index.js
+
 outputs:
   ghc-version:
     description: The GHC version to install

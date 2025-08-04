@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "ncc build src/index.js -o dist"
+    "build": "ncc build src/index.js -o ."
   },
   "dependencies": {
     "@actions/core": "^1.10.0",
-    "js-yaml": "^4.1.0g"
+    "js-yaml": "^4.1.0"
   },
     "devDependencies": {
         "ncc": "^0.3.6",
