@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "ncc build src/index.js -o ."
+    "build": "ncc build src/index.js -o dist"
   },
   "dependencies": {
     "@actions/core": "^1.10.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0g"
   },
-  "devDependencies": {
-    "@vercel/ncc": "^0.38.0"
+    "devDependencies": {
+        "ncc": "^0.3.6",
+        "@vercel/ncc": "^0.38.0"
   }
 }
