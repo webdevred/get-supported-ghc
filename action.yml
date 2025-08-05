@@ -1,6 +1,6 @@
 name: Get Supported GHC Version
 description: Finds the latest GHC version that supports the base upper bound in your
-  .cabal file.
+  package.yaml file.
 
 runs:
   using: node20
