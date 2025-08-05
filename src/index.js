@@ -2,6 +2,7 @@ const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
+const githubCore = require("@actions/core");
 
 async function runCommand(cmd) {
   return new Promise((resolve, reject) => {
@@ -49,8 +50,9 @@ function versionLess(v1, v2) {
 async function main() {
   try {
     const files = fs.readdirSync(process.cwd());
+    const packageYamlPath = githubCore.getInput("package-yaml-path") || path.join(process.cwd(), "package.yaml");
 
-    const baseUpperBound = getBaseUpperBound(path.join(process.cwd(), "package.yaml"));
+    const baseUpperBound = getBaseUpperBound(packageYamlPath);
 
     const ghcupListStr = await runCommand("ghcup list -t ghc -r");
     const lines = ghcupListStr.split("\n").filter(Boolean);
@@ -60,6 +62,12 @@ async function main() {
           if (!match) return null;
           return { version: match[1], base: match[2] };
       }).filter(Boolean);
+
+      if(ghcupList.length > 0) {
+          console.log(`Found ${ghcupList.length} GHC versions`);
+      } else {
+          throw new Error('Failed to get GHC versions from GHCup');
+      }
 
     const validVersions = ghcupList.filter(ghcEntry => {
       return versionLess(ghcEntry.base, baseUpperBound);
