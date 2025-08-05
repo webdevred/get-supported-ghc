@@ -1,0 +1,24 @@
+name: Test Get Supported GHC Version Action
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: 0 5 * * 0  # every sunday 05:00 UTC
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install
+      - run: npm run build
+      - name: Run action
+        uses: ./
+        id: ghc-version
+      - name: Assert output
+        run: |-
+          if [ "${{ steps.ghc-version.outputs.ghc-version }}" != "8.10.7" ]; then
+            exit 1
+          fi

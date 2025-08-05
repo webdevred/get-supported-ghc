@@ -1,0 +1,8 @@
+name: my-haskell-package
+version: 0.1.0.0
+dependencies: [base >= 4.10 && < 4.15, containers, text]
+
+library:
+  exposed-modules: MyLib
+  source-dirs: src
+  ghc-options: -Wall
