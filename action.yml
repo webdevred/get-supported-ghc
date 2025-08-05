@@ -6,6 +6,12 @@ runs:
   using: node20
   main: index.js
 
+inputs:
+  package-yaml-path:
+    description: 'Path to package.yaml (default: package.yaml in repo root)'
+    required: false
+    default: package.yaml
+
 outputs:
   ghc-version:
     description: The GHC version to install

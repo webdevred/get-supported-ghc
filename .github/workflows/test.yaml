@@ -16,6 +16,8 @@ jobs:
       - run: npm run build
       - name: Run action
         uses: ./
+        with:
+          package-yaml-path: examples/package.yaml
         id: ghc-version
       - name: Assert output
         run: |-
