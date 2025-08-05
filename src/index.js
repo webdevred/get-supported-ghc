@@ -13,7 +13,43 @@ async function runCommand(cmd) {
   });
 }
 
-function getBaseUpperBound(packageYamlPath) {
+function getBaseUpperBound(baseBound) {
+  const baseBoundMatch = baseBound.match(/(<=|<)\s*((\d+)(\.(\d+))?(\.(\d+))?)/);
+  if (!baseBoundMatch) return null;
+
+  const operator = baseBoundMatch[1];
+  const version = baseBoundMatch[2];
+  const inclusive = operator === "<=";
+
+  return { inclusive, version };
+}
+
+function normalizeVersion(version, segments = 3) {
+  const parts = version.split('.').map(Number);
+  while (parts.length < segments) parts.push(0);
+  return parts.slice(0, segments).join('.');
+}
+
+function compareVersions(a, b) {
+  const pa = normalizeVersion(a).split('.').map(Number);
+  const pb = normalizeVersion(b).split('.').map(Number);
+  const len = Math.max(pa.length, pb.length);
+
+  for (let i = 0; i < len; i++) {
+    const na = pa[i] || 0;
+    const nb = pb[i] || 0;
+    if (na > nb) return 1;
+    if (na < nb) return -1;
+  }
+  return 0;
+}
+
+function versionLess(baseVersion, bound) {
+  const cmp = compareVersions(baseVersion, bound.version);
+  return cmp < 0 || (cmp === 0 && bound.inclusive);
+}
+
+function parseBaseUpperBound(packageYamlPath) {
   const fileContent = fs.readFileSync(packageYamlPath, "utf-8");
   const parsed = yaml.load(fileContent);
 
@@ -27,54 +63,40 @@ function getBaseUpperBound(packageYamlPath) {
     throw new Error("No base dependency found in package.yaml");
   }
 
-  const versionConstraint = baseDep.match(/<\s*([\d.]+)/);
+  const versionConstraint = getBaseUpperBound(baseDep);
   if (!versionConstraint) {
     throw new Error("No upper bound for base found in package.yaml");
   }
 
-  return versionConstraint[1];
-}
-
-function versionLess(v1, v2) {
-  const a = v1.split('.').map(Number);
-  const b = v2.split('.').map(Number);
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const n1 = a[i] || 0;
-    const n2 = b[i] || 0;
-    if (n1 < n2) return true;
-    if (n1 > n2) return false;
-  }
-  return false;
+  return versionConstraint;
 }
 
 async function main() {
   try {
-    const files = fs.readdirSync(process.cwd());
     const packageYamlPath = githubCore.getInput("package-yaml-path") || path.join(process.cwd(), "package.yaml");
-
-    const baseUpperBound = getBaseUpperBound(packageYamlPath);
+    const baseUpperBound = parseBaseUpperBound(packageYamlPath);
 
     const ghcupListStr = await runCommand("ghcup list -t ghc -r");
     const lines = ghcupListStr.split("\n").filter(Boolean);
 
-      const ghcupList = lines.map(line => {
-          const match = line.match(/^ghc\s([^\s]+)\s.*?base-([0-9.]+)/);
-          if (!match) return null;
-          return { version: match[1], base: match[2] };
-      }).filter(Boolean);
+    const ghcupList = lines.map(line => {
+      const match = line.match(/^ghc\s([^\s]+)\s.*?base-([0-9.]+)/);
+      if (!match) return null;
+      return { version: match[1], base: match[2] };
+    }).filter(Boolean);
 
-      if(ghcupList.length > 0) {
-          console.log(`Found ${ghcupList.length} GHC versions`);
-      } else {
-          throw new Error('Failed to get GHC versions from GHCup');
-      }
+    if (ghcupList.length > 0) {
+      console.log(`Found ${ghcupList.length} GHC versions`);
+    } else {
+      throw new Error('Failed to get GHC versions from GHCup');
+    }
 
     const validVersions = ghcupList.filter(ghcEntry => {
       return versionLess(ghcEntry.base, baseUpperBound);
     });
 
     if (validVersions.length === 0) {
-      throw new Error(`No GHC version found with base < ${baseUpperBound}`);
+      throw new Error(`No GHC version found with base <${baseUpperBound.inclusive ? "=" : ""} ${baseUpperBound.version}`);
     }
 
     validVersions.sort((a, b) => {
@@ -91,7 +113,8 @@ async function main() {
 
     const latestGhc = validVersions[0].version;
 
-    console.log(`Latest GHC under base < ${baseUpperBound}: ${latestGhc}`);
+    console.log(`Latest GHC under base < ${baseUpperBound.version}: ${latestGhc}`);
+
     const outputPath = process.env.GITHUB_OUTPUT;
     fs.appendFileSync(outputPath, `ghc-version=${latestGhc}\n`);
   } catch (err) {

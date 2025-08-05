@@ -14,13 +14,23 @@ jobs:
       - uses: actions/checkout@v4.2.2
       - run: npm install
       - run: npm run build
-      - name: Run action
+      - name: Run action with inclusive upper bound
         uses: ./
         with:
-          package-yaml-path: examples/package.yaml
-        id: ghc-version
+          package-yaml-path: examples/package-equal-or-less-than.yaml
+        id: ghc-version-inclusive
       - name: Assert output
         run: |-
-          if [ "${{ steps.ghc-version.outputs.ghc-version }}" != "8.10.7" ]; then
+          if [ "${{ steps.ghc-version-inclusive.outputs.ghc-version }}" != "9.0.1" ]; then
+            exit 1
+          fi
+      - name: Run action with exclusive upper bound
+        uses: ./
+        with:
+          package-yaml-path: examples/package-less-than.yaml
+        id: ghc-version-exclusive
+      - name: Assert output
+        run: |-
+          if [ "${{ steps.ghc-version-exclusive.outputs.ghc-version }}" != "8.10.7" ]; then
             exit 1
           fi
