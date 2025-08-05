@@ -1,5 +1,7 @@
 # Get Supported GHC Version
 
+[![Test Get Supported GHC Version Action](https://github.com/webdevred/get-supported-ghc/actions/workflows/test.yaml/badge.svg)](https://github.com/webdevred/get-supported-ghc/actions/workflows/test.yaml)
+
 This GitHub Action automatically detects the latest GHC (Glasgow Haskell Compiler) version compatible with your Haskell project's `base` dependency constraint in `package.yaml`.
 
 Useful for CI/CD workflows where you want to install a GHC version that satisfies your project's dependency bounds.
