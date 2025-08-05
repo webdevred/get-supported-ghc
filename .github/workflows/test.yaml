@@ -12,6 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
+      - name: Check formatting with js-beautify
+        run: |
+          npx js-beautify -r -n "**/*.js"
+          npx js-beautify -r -n "package.json"
+          git diff --exit-code
       - run: npm install
       - run: npm run build
       - name: Run action with inclusive upper bound
