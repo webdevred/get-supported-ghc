@@ -123,8 +123,7 @@ async function main() {
 
         githubCore.info(`Latest GHC under base < ${baseUpperBound.version}: ${latestGhc}`);
 
-        const outputPath = process.env.GITHUB_OUTPUT;
-        fs.appendFileSync(outputPath, `ghc-version=${latestGhc}\n`);
+        githubCore.setOutput('ghc-version', latestGhc);
     } catch (err) {
         githubCore.setFailed(err.message);
     }
