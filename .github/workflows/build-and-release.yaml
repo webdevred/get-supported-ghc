@@ -1,6 +1,8 @@
-name: Build and Release
+name: Build and release
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
     inputs:
       tag:
@@ -9,36 +11,64 @@ on:
 
 jobs:
   release:
-    name: Create Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
-      - name: Set up Node.js
-        uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: '20'
-      - name: Install dependencies
-        run: npm install
-      - name: Build with ncc
-        run: npm run build
-      - name: Zip build artifacts
-        run: zip -r build-${{ github.event.inputs.tag }}.zip index.js
-      - name: Create tag
+      - run: npm install
+      - name: Bump version in package.json if needed
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG=${{ github.event.inputs.tag }}
+          VER=${TAG#v}
+          npm version $VER --no-git-tag-version
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump to v${VER}"
+          git push origin HEAD
+      - id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          T=v${{ steps.get_version.outputs.VERSION }}
+          if git rev-parse "$T" >/dev/null 2>&1; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+      - if: steps.tag_check.outputs.skip == 'false'
+        name: Build and zip
+        run: |
+          npm run build
+          zip -r build-v${{ steps.get_version.outputs.VERSION }}.zip index.js
+      - if: steps.tag_check.outputs.skip == 'false'
+        name: Create tag with only build output
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          rm -rf src
+          TAG=v${{ steps.get_version.outputs.VERSION }}
+          TMP_BRANCH=release-tmp-$TAG
+          git checkout -b $TMP_BRANCH
+          git rm -rf src
           git add -f index.js
-          git add -u
-          git commit -m "Build for release ${{ github.event.inputs.tag }}"
-          git tag ${{ github.event.inputs.tag }}
-          git push origin ${{ github.event.inputs.tag }}
-      - name: Create GitHub release
-        id: create_release
+          git reset HEAD package.json package-lock.json
+          git commit -m "build: release $TAG"
+          git tag $TAG
+          git push origin $TAG
+          git checkout master
+          git branch -D $TMP_BRANCH
+      - if: steps.tag_check.outputs.skip == 'false'
+        name: Create GitHub release
         uses: softprops/action-gh-release@v2.3.2
         with:
-          tag_name: ${{ github.event.inputs.tag }}
+          tag_name: v${{ steps.get_version.outputs.VERSION }}
           generate_release_notes: true
+          files: build-v${{ steps.get_version.outputs.VERSION }}.zip
