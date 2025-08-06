@@ -65,12 +65,12 @@ function parseBaseUpperBound(packageYamlPath) {
 
     const baseDep = deps.find(dep => dep.startsWith("base"));
     if (!baseDep) {
-        throw new Error("No base dependency found in package.yaml");
+        githubCore.setFailed("No base dependency found in package.yaml");
     }
 
     const versionConstraint = getBaseUpperBound(baseDep);
     if (!versionConstraint) {
-        throw new Error("No upper bound for base found in package.yaml");
+        githubCore.setFailed("No upper bound for base found in package.yaml");
     }
 
     return versionConstraint;
@@ -96,7 +96,7 @@ async function main() {
         if (ghcupList.length > 0) {
             console.log(`Found ${ghcupList.length} GHC versions`);
         } else {
-            throw new Error('Failed to get GHC versions from GHCup');
+            githubCore.setFailed('Failed to get GHC versions from GHCup');
         }
 
         const validVersions = ghcupList.filter(ghcEntry => {
@@ -126,8 +126,7 @@ async function main() {
         const outputPath = process.env.GITHUB_OUTPUT;
         fs.appendFileSync(outputPath, `ghc-version=${latestGhc}\n`);
     } catch (err) {
-        console.error(err);
-        process.exit(1);
+        githubCore.setFailed(err.message);
     }
 }
 
