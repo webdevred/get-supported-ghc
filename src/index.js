@@ -94,7 +94,7 @@ async function main() {
         }).filter(Boolean);
 
         if (ghcupList.length > 0) {
-            console.log(`Found ${ghcupList.length} GHC versions`);
+            githubCore.info(`Found ${ghcupList.length} GHC versions`);
         } else {
             githubCore.setFailed('Failed to get GHC versions from GHCup');
         }
@@ -121,7 +121,7 @@ async function main() {
 
         const latestGhc = validVersions[0].version;
 
-        console.log(`Latest GHC under base < ${baseUpperBound.version}: ${latestGhc}`);
+        githubCore.info(`Latest GHC under base < ${baseUpperBound.version}: ${latestGhc}`);
 
         const outputPath = process.env.GITHUB_OUTPUT;
         fs.appendFileSync(outputPath, `ghc-version=${latestGhc}\n`);
