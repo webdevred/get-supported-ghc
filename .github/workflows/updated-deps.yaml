@@ -1,0 +1,28 @@
+name: Check for outdated dependencies
+
+on:
+  pull_request:
+  schedule:
+    - cron: 0 5 * * 0  # every sunday 05:00 UTC
+
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm clean-install
+      - name: Check for outdated dependencies
+        run: |-
+          OUTDATED=$(npm outdated || true)
+          if [ -n "$OUTDATED" ]; then
+            echo "Outdated dependencies found:"
+            echo "$OUTDATED"
+            exit 1
+          fi
