@@ -9,7 +9,7 @@ jobs:
   integration-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5.0.0
+      - uses: actions/checkout@v5
       - run: npm install
       - name: Check formatting with js-beautify
         run: |
