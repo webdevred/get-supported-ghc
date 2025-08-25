@@ -10,7 +10,7 @@ updates:
       prefix: chore
       include: scope
     groups:
-      all-actions:
+      all-dependabot-updates:
         patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
@@ -21,5 +21,5 @@ updates:
       prefix: chore
       include: scope
     groups:
-      all-actions:
+      all-dependabot-updates:
         patterns: ['*']
