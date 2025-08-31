@@ -1,6 +1,6 @@
 {
     "name": "get-supported-ghc",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "main": "index.js",
     "scripts": {
         "build": "ncc build src/index.js -o ."
