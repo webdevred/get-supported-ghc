@@ -63,14 +63,30 @@ function parseBaseUpperBound(packageYamlPath) {
         throw new Error("dependencies not found or invalid in package.yaml");
     }
 
-    const baseDep = deps.find(dep => dep.startsWith("base"));
+    const baseDep = deps.find(dep => {
+        if (typeof dep === "string") {
+            return dep.startsWith("base");
+        } else if (typeof dep === "object" && dep.name) {
+            return dep.name === "base";
+        }
+        return false;
+    });
+
     if (!baseDep) {
         githubCore.setFailed("No base dependency found in package.yaml");
+        return;
     }
 
-    const versionConstraint = getBaseUpperBound(baseDep);
+    let versionConstraint;
+    if (typeof baseDep === "string") {
+        versionConstraint = getBaseUpperBound(baseDep);
+    } else if (typeof baseDep === "object") {
+        versionConstraint = getBaseUpperBound(baseDep.version);
+    }
+
     if (!versionConstraint) {
         githubCore.setFailed("No upper bound for base found in package.yaml");
+        return;
     }
 
     return versionConstraint;
