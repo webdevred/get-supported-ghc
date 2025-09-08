@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
       - run: npm install
@@ -67,7 +67,7 @@ jobs:
           git branch -D $TMP_BRANCH
       - if: steps.tag_check.outputs.skip == 'false'
         name: Create GitHub release
-        uses: softprops/action-gh-release@v2.3.2
+        uses: softprops/action-gh-release@v2.3.3
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           generate_release_notes: true
