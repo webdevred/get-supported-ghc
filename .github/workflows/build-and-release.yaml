@@ -67,7 +67,7 @@ jobs:
           git branch -D $TMP_BRANCH
       - if: steps.tag_check.outputs.skip == 'false'
         name: Create GitHub release
-        uses: softprops/action-gh-release@v2.3.3
+        uses: softprops/action-gh-release@v2.3.4
         with:
           tag_name: v${{ steps.get_version.outputs.VERSION }}
           generate_release_notes: true
