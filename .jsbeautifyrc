@@ -1,0 +1,12 @@
+{
+  "end_with_newline" : true,
+  "indent_size": 2,
+  "indent_char": " ",
+  "max_preserve_newlines": 2,
+  "preserve_newlines": true,
+  "space_in_paren": false,
+  "space_in_empty_paren": false,
+  "js": {
+    "indent_size": 2
+  }
+}
