@@ -1,4 +1,6 @@
-import { exec } from "child_process";
+import {
+  exec
+} from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
@@ -10,7 +12,9 @@ interface BaseUpperBound {
 }
 
 interface PackageYaml {
-  dependencies?: Array<string | { name: string; version: string }>;
+  dependencies ? : Array < string | {
+    name: string;version: string
+  } > ;
 }
 
 interface GhcEntry {
@@ -18,7 +22,7 @@ interface GhcEntry {
   base: string;
 }
 
-function runCommand(cmd: string): Promise<string> {
+function runCommand(cmd: string): Promise < string > {
   return new Promise((resolve, reject) => {
     exec(cmd, (error, stdout) => {
       if (error) reject(error);
@@ -35,7 +39,10 @@ function getBaseUpperBound(baseBound: string): BaseUpperBound | null {
   const version = baseBoundMatch[2];
   const inclusive = operator === "<=";
 
-  return { inclusive, version };
+  return {
+    inclusive,
+    version
+  };
 }
 
 function normalizeVersion(version: string, segments = 3): string {
@@ -78,16 +85,16 @@ function parseBaseUpperBound(packageYamlPath: string): BaseUpperBound {
   if (!baseDep) throw new Error("No base dependency found in package.yaml");
 
   const versionConstraint =
-    typeof baseDep === "string"
-      ? getBaseUpperBound(baseDep)
-      : getBaseUpperBound(baseDep.version);
+    typeof baseDep === "string" ?
+    getBaseUpperBound(baseDep) :
+    getBaseUpperBound(baseDep.version);
 
   if (!versionConstraint) throw new Error("No upper bound for base found in package.yaml");
 
   return versionConstraint;
 }
 
-async function main(): Promise<void> {
+async function main(): Promise < void > {
   try {
     const packageYamlPath =
       githubCore.getInput("package-yaml-path") || path.join(process.cwd(), "package.yaml");
@@ -101,7 +108,10 @@ async function main(): Promise<void> {
       .map((line) => {
         const match = line.match(/^ghc\s([^\s]+)\s.*?base-([0-9.]+)/);
         if (!match) return null;
-        return { version: match[1], base: match[2] };
+        return {
+          version: match[1],
+          base: match[2]
+        };
       })
       .filter((x): x is GhcEntry => x !== null);
 
