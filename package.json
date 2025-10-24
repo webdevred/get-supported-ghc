@@ -3,15 +3,18 @@
   "version": "0.0.9",
   "main": "index.js",
   "scripts": {
-    "build": "ncc build src/index.js -o .",
-    "format": "js-beautify -r '**/*.js' 'package.json'"
+    "build": "ncc build src/index.ts -o dist",
+    "format": "js-beautify -r './**/*.ts' './package.json'"
   },
   "dependencies": {
     "@actions/core": "^1.10.0",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.9.1",
     "@vercel/ncc": "^0.38.4",
-    "js-beautify": "^1.15.4"
+    "js-beautify": "^1.15.4",
+    "typescript": "^5.2.0"
   }
 }

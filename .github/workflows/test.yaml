@@ -7,10 +7,18 @@ on:
 
 jobs:
   integration-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v5
-      - run: npm clean-install
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm clean-install
       - name: Check formatting with js-beautify
         run: |
           npm run format
@@ -26,6 +34,7 @@ jobs:
           if [ "${{ steps.ghc-version-inclusive.outputs.ghc-version }}" != "9.0.1" ]; then
             exit 1
           fi
+        shell: bash
       - name: Run action with exclusive upper bound
         uses: ./
         with:
@@ -36,3 +45,4 @@ jobs:
           if [ "${{ steps.ghc-version-exclusive.outputs.ghc-version }}" != "8.10.7" ]; then
             exit 1
           fi
+        shell: bash

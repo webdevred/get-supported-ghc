@@ -48,7 +48,7 @@ jobs:
         name: Build and zip
         run: |
           npm run build
-          zip -r build-v${{ steps.get_version.outputs.VERSION }}.zip index.js
+          zip -r build-v${{ steps.get_version.outputs.VERSION }}.zip dist
       - if: steps.tag_check.outputs.skip == 'false'
         name: Create tag with only build output
         run: |
@@ -58,7 +58,7 @@ jobs:
           TMP_BRANCH=release-tmp-$TAG
           git checkout -b $TMP_BRANCH
           git rm -rf src
-          git add -f index.js
+          git add -f dist/index.js
           git reset HEAD package.json package-lock.json
           git commit -m "build: release $TAG"
           git tag $TAG
