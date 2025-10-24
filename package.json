@@ -3,7 +3,7 @@
   "version": "0.0.9",
   "main": "index.js",
   "scripts": {
-    "build": "ncc build src/index.js -o dist",
+    "build": "ncc build src/index.ts -o dist",
     "format": "js-beautify -r '**/*.js' 'package.json'"
   },
   "dependencies": {
@@ -12,6 +12,8 @@
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.4",
-    "js-beautify": "^1.15.4"
+    "js-beautify": "^1.15.4",
+    "typescript": "^5.2.0",
+    "@types/node": "^20.5.0"
   }
 }
