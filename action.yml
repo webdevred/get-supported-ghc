@@ -4,7 +4,7 @@ description: Finds the latest GHC version that supports the base upper bound in 
 
 runs:
   using: node20
-  main: index.js
+  main: ./dist/index.js
 
 inputs:
   package-yaml-path:

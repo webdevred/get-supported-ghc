@@ -3,7 +3,7 @@
   "version": "0.0.9",
   "main": "index.js",
   "scripts": {
-    "build": "ncc build src/index.js -o .",
+    "build": "ncc build src/index.js -o dist",
     "format": "js-beautify -r '**/*.js' 'package.json'"
   },
   "dependencies": {
