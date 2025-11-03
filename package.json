@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^24.9.1",
+    "@types/node": "^24.10.0",
     "@vercel/ncc": "^0.38.4",
     "js-beautify": "^1.15.4",
     "typescript": "^5.2.0"
