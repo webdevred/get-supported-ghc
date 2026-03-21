@@ -9,17 +9,31 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    versioning-strategy: increase
+    allow:
+      - dependency-type: all
     groups:
-      all-dependabot-updates:
+      minor-and-patch:
         patterns: ['*']
+        update-types: ['minor', 'patch']
+      major:
+        patterns: ['*']
+        update-types: ['major']
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    reviewers:
+      - your-team
     commit-message:
       prefix: chore
       include: scope
     groups:
-      all-dependabot-updates:
+      minor-and-patch:
         patterns: ['*']
+        update-types: ['minor', 'patch']
+      major:
+        patterns: ['*']
+        update-types: ['major']
