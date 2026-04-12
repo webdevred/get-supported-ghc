@@ -17,5 +17,9 @@ inputs:
     default: 'false'
 
 outputs:
-  ghc-version:
+  max-ghc-version:
     description: The GHC version to install
+  ghc-version:
+    description: 'Deprecated - use max-ghc-version instead'
+  min-ghc-version:
+    description: The oldest GHC version whose base satisfies the lower bound in package.yaml

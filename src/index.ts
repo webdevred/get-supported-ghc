@@ -203,7 +203,22 @@ async function main(): Promise < void > {
       `Latest GHC under base <${baseUpperBound.inclusive ? "=" : ""} ${baseUpperBound.version}: ${latestGhc}`
     );
 
+    githubCore.setOutput("max-ghc-version", latestGhc);
     githubCore.setOutput("ghc-version", latestGhc);
+
+    if (baseLowerBound) {
+      const lowerCandidates = ghcupList.filter((entry) =>
+        satisfiesLowerBound(entry.base, baseLowerBound)
+      );
+      if (lowerCandidates.length > 0) {
+        lowerCandidates.sort((a, b) => compareVersions(a.version, b.version));
+        const minGhc = lowerCandidates[0].version;
+        githubCore.info(
+          `Oldest GHC under base >${baseLowerBound.inclusive ? "=" : ""} ${baseLowerBound.version}: ${minGhc}`
+        );
+        githubCore.setOutput("min-ghc-version", minGhc);
+      }
+    }
   } catch (err: unknown) {
     githubCore.setFailed(err instanceof Error ? err.message : String(err));
   }
