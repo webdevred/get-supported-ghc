@@ -11,6 +11,10 @@ inputs:
     description: 'Path to package.yaml (default: package.yaml in repo root)'
     required: false
     default: package.yaml
+  validate-lower-bound:
+    description: 'Fail if the base lower bound covers GHC major versions with breaking changes below the minimum version in tested-with'
+    required: false
+    default: 'false'
 
 outputs:
   ghc-version:
