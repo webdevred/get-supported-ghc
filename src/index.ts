@@ -26,7 +26,7 @@ interface PackageYaml {
     name: string;
     version: string;
   } > ;
-  "tested-with" ? : string;
+  "tested-with" ? : string | string[];
 }
 
 interface GhcEntry {
@@ -127,7 +127,8 @@ function parsePackageYaml(packageYamlPath: string): ParsedPackageYaml {
     upper
   };
 
-  const testedWith = parsed["tested-with"];
+  const testedWithRaw = parsed["tested-with"];
+  const testedWith = Array.isArray(testedWithRaw) ? testedWithRaw.join(", ") : testedWithRaw;
   let minTestedGhc: string | null = null;
   if (testedWith) {
     const versions = [...testedWith.matchAll(/GHC\s*==\s*([\d.]+)/g)]
