@@ -11,9 +11,14 @@ import * as githubCore from "@actions/core";
 
 const execAsync = promisify(exec);
 
-interface BaseUpperBound {
+interface BaseBound {
   inclusive: boolean;
   version: string;
+}
+
+interface BaseBounds {
+  lower: BaseBound | null;
+  upper: BaseBound;
 }
 
 interface PackageYaml {
@@ -21,6 +26,7 @@ interface PackageYaml {
     name: string;
     version: string;
   } > ;
+  "tested-with" ? : string;
 }
 
 interface GhcEntry {
@@ -35,18 +41,21 @@ async function runCommand(cmd: string): Promise < string > {
   return stdout.trim();
 }
 
-function getBaseUpperBound(baseBound: string): BaseUpperBound | null {
-  const baseBoundMatch = baseBound.match(/(<=|<)\s*((\d+)(\.(\d+))?(\.(\d+))?)/);
-  if (!baseBoundMatch) return null;
-
-  const operator = baseBoundMatch[1];
-  const version = baseBoundMatch[2];
-  const inclusive = operator === "<=";
-
+function parseBound(constraint: string, regex: RegExp, inclusiveOp: string): BaseBound | null {
+  const match = constraint.match(regex);
+  if (!match) return null;
   return {
-    inclusive,
-    version
+    inclusive: match[1] === inclusiveOp,
+    version: match[2]
   };
+}
+
+function getUpperBound(constraint: string): BaseBound | null {
+  return parseBound(constraint, /(<=|<)\s*((\d+)(\.(\d+))?(\.(\d+))?)/, "<=");
+}
+
+function getLowerBound(constraint: string): BaseBound | null {
+  return parseBound(constraint, /(>=|>)\s*((\d+)(\.(\d+))?(\.(\d+))?)/, ">=");
 }
 
 function normalizeVersion(version: string, segments = 3): number[] {
@@ -66,12 +75,33 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-function satisfiesUpperBound(baseVersion: string, bound: BaseUpperBound): boolean {
+function satisfiesBound(baseVersion: string, bound: BaseBound, direction: 1 | -1): boolean {
   const cmp = compareVersions(baseVersion, bound.version);
-  return cmp < 0 || (cmp === 0 && bound.inclusive);
+  return cmp === direction || (cmp === 0 && bound.inclusive);
 }
 
-function parseBaseUpperBound(packageYamlPath: string): BaseUpperBound {
+function satisfiesUpperBound(baseVersion: string, bound: BaseBound): boolean {
+  return satisfiesBound(baseVersion, bound, -1);
+}
+
+function satisfiesLowerBound(baseVersion: string, bound: BaseBound): boolean {
+  return satisfiesBound(baseVersion, bound, 1);
+}
+
+function ghcMajorVersion(version: string): number {
+  return Number(version.split(".")[0]);
+}
+
+function boundOp(bound: BaseBound, type: "<" | ">"): string {
+  return bound.inclusive ? `${type}=` : type;
+}
+
+interface ParsedPackageYaml {
+  bounds: BaseBounds;
+  minTestedGhc: string | null;
+}
+
+function parsePackageYaml(packageYamlPath: string): ParsedPackageYaml {
   const fileContent = fs.readFileSync(packageYamlPath, "utf-8");
   const parsed = yaml.load(fileContent) as PackageYaml;
 
@@ -88,22 +118,46 @@ function parseBaseUpperBound(packageYamlPath: string): BaseUpperBound {
 
   if (!baseDep) throw new Error("No base dependency found in package.yaml");
 
-  const versionConstraint =
-    typeof baseDep === "string" ?
-    getBaseUpperBound(baseDep) :
-    getBaseUpperBound(baseDep.version);
+  const constraint = typeof baseDep === "string" ? baseDep : baseDep.version;
+  const upper = getUpperBound(constraint);
+  if (!upper) throw new Error("No upper bound for base found in package.yaml");
 
-  if (!versionConstraint) throw new Error("No upper bound for base found in package.yaml");
+  const bounds: BaseBounds = {
+    lower: getLowerBound(constraint),
+    upper
+  };
 
-  return versionConstraint;
+  const testedWith = parsed["tested-with"];
+  let minTestedGhc: string | null = null;
+  if (testedWith) {
+    const versions = [...testedWith.matchAll(/GHC\s*==\s*([\d.]+)/g)]
+      .map((m) => m[1]);
+    if (versions.length > 0) {
+      versions.sort(compareVersions);
+      minTestedGhc = versions[0];
+    }
+  }
+
+  return {
+    bounds,
+    minTestedGhc
+  };
 }
 
 async function main(): Promise < void > {
   try {
     const packageYamlPath =
       githubCore.getInput("package-yaml-path") || path.join(process.cwd(), "package.yaml");
+    const validateLowerBound = githubCore.getInput("validate-lower-bound") === "true";
 
-    const baseUpperBound = parseBaseUpperBound(packageYamlPath);
+    const {
+      bounds: {
+        lower: baseLowerBound,
+        upper: baseUpperBound
+      },
+      minTestedGhc
+    } =
+    parsePackageYaml(packageYamlPath);
 
     const ghcupListStr = await runCommand("ghcup list -t ghc -r");
     const lines = ghcupListStr.split("\n").filter(Boolean);
@@ -121,13 +175,30 @@ async function main(): Promise < void > {
 
     if (ghcupList.length === 0) throw new Error("Failed to get GHC versions from GHCup");
 
+    if (validateLowerBound && baseLowerBound && minTestedGhc) {
+      const minTestedMajor = ghcMajorVersion(minTestedGhc);
+      const breakingVersions = ghcupList.filter((entry) =>
+        satisfiesLowerBound(entry.base, baseLowerBound) &&
+        compareVersions(entry.version, minTestedGhc) < 0 &&
+        ghcMajorVersion(entry.version) < minTestedMajor
+      );
+      if (breakingVersions.length > 0) {
+        breakingVersions.sort((a, b) => compareVersions(b.version, a.version));
+        const oldest = breakingVersions[breakingVersions.length - 1].version;
+        const newest = breakingVersions[0].version;
+        throw new Error(
+          `base lower bound covers GHC ${oldest}..${newest} which have breaking changes relative to minimum tested version ${minTestedGhc}`
+        );
+      }
+    }
+
     const validVersions = ghcupList.filter((ghcEntry) =>
       satisfiesUpperBound(ghcEntry.base, baseUpperBound)
     );
 
     if (validVersions.length === 0) {
       throw new Error(
-        `No GHC version found with base <${baseUpperBound.inclusive ? "=" : ""} ${baseUpperBound.version}`
+        `No GHC version found with base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}`
       );
     }
 
@@ -136,10 +207,25 @@ async function main(): Promise < void > {
     const latestGhc = validVersions[0].version;
 
     githubCore.info(
-      `Latest GHC under base <${baseUpperBound.inclusive ? "=" : ""} ${baseUpperBound.version}: ${latestGhc}`
+      `Latest GHC under base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}: ${latestGhc}`
     );
 
+    githubCore.setOutput("max-ghc-version", latestGhc);
     githubCore.setOutput("ghc-version", latestGhc);
+
+    if (baseLowerBound) {
+      const lowerCandidates = ghcupList.filter((entry) =>
+        satisfiesLowerBound(entry.base, baseLowerBound)
+      );
+      if (lowerCandidates.length > 0) {
+        lowerCandidates.sort((a, b) => compareVersions(a.version, b.version));
+        const minGhc = lowerCandidates[0].version;
+        githubCore.info(
+          `Oldest GHC under base ${boundOp(baseLowerBound, ">")} ${baseLowerBound.version}: ${minGhc}`
+        );
+        githubCore.setOutput("min-ghc-version", minGhc);
+      }
+    }
   } catch (err: unknown) {
     githubCore.setFailed(err instanceof Error ? err.message : String(err));
   }
