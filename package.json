@@ -3,7 +3,7 @@
   "version": "0.0.10",
   "main": "index.js",
   "scripts": {
-    "build": "ncc build src/index.ts -o dist",
+    "build": "esbuild src/index.ts --bundle --platform=node --outfile=dist/index.js",
     "format": "js-beautify -r './**/*.ts' './package.json'"
   },
   "dependencies": {
@@ -13,7 +13,7 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
-    "@vercel/ncc": "^0.38.4",
+    "esbuild": "^0.28.0",
     "js-beautify": "^1.15.4",
     "typescript": "^6.0.2"
   }
