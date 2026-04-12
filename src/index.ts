@@ -1,10 +1,15 @@
 import {
+  promisify
+} from "util";
+import {
   exec
 } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
 import * as githubCore from "@actions/core";
+
+const execAsync = promisify(exec);
 
 interface BaseUpperBound {
   inclusive: boolean;
@@ -13,7 +18,8 @@ interface BaseUpperBound {
 
 interface PackageYaml {
   dependencies ? : Array < string | {
-    name: string;version: string
+    name: string;
+    version: string;
   } > ;
 }
 
@@ -22,13 +28,11 @@ interface GhcEntry {
   base: string;
 }
 
-function runCommand(cmd: string): Promise < string > {
-  return new Promise((resolve, reject) => {
-    exec(cmd, (error, stdout) => {
-      if (error) reject(error);
-      else resolve(stdout.trim());
-    });
-  });
+async function runCommand(cmd: string): Promise < string > {
+  const {
+    stdout
+  } = await execAsync(cmd);
+  return stdout.trim();
 }
 
 function getBaseUpperBound(baseBound: string): BaseUpperBound | null {
@@ -45,24 +49,24 @@ function getBaseUpperBound(baseBound: string): BaseUpperBound | null {
   };
 }
 
-function normalizeVersion(version: string, segments = 3): string {
+function normalizeVersion(version: string, segments = 3): number[] {
   const parts = version.split(".").map(Number);
   while (parts.length < segments) parts.push(0);
-  return parts.slice(0, segments).join(".");
+  return parts.slice(0, segments);
 }
 
 function compareVersions(a: string, b: string): number {
-  const pa = normalizeVersion(a).split(".").map(Number);
-  const pb = normalizeVersion(b).split(".").map(Number);
+  const pa = normalizeVersion(a);
+  const pb = normalizeVersion(b);
 
-  for (let i = 0; i < pa.length; i++) {
+  for (let i = 0; i < 3; i++) {
     if (pa[i] > pb[i]) return 1;
     if (pa[i] < pb[i]) return -1;
   }
   return 0;
 }
 
-function versionLess(baseVersion: string, bound: BaseUpperBound): boolean {
+function satisfiesUpperBound(baseVersion: string, bound: BaseUpperBound): boolean {
   const cmp = compareVersions(baseVersion, bound.version);
   return cmp < 0 || (cmp === 0 && bound.inclusive);
 }
@@ -77,7 +81,7 @@ function parseBaseUpperBound(packageYamlPath: string): BaseUpperBound {
   }
 
   const baseDep = deps.find((dep) => {
-    if (typeof dep === "string") return dep.startsWith("base");
+    if (typeof dep === "string") return dep === "base" || dep.startsWith("base ");
     if (typeof dep === "object" && dep.name) return dep.name === "base";
     return false;
   });
@@ -118,7 +122,7 @@ async function main(): Promise < void > {
     if (ghcupList.length === 0) throw new Error("Failed to get GHC versions from GHCup");
 
     const validVersions = ghcupList.filter((ghcEntry) =>
-      versionLess(ghcEntry.base, baseUpperBound)
+      satisfiesUpperBound(ghcEntry.base, baseUpperBound)
     );
 
     if (validVersions.length === 0) {
@@ -132,12 +136,12 @@ async function main(): Promise < void > {
     const latestGhc = validVersions[0].version;
 
     githubCore.info(
-      `Latest GHC under base < ${baseUpperBound.version}: ${latestGhc}`
+      `Latest GHC under base <${baseUpperBound.inclusive ? "=" : ""} ${baseUpperBound.version}: ${latestGhc}`
     );
 
     githubCore.setOutput("ghc-version", latestGhc);
-  } catch (err: any) {
-    githubCore.setFailed(err.message);
+  } catch (err: unknown) {
+    githubCore.setFailed(err instanceof Error ? err.message : String(err));
   }
 }
 
