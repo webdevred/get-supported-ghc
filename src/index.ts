@@ -41,6 +41,29 @@ async function runCommand(cmd: string): Promise < string > {
   return stdout.trim();
 }
 
+async function getGhcupList(): Promise < string > {
+  const cacheFile = process.env.RUNNER_TEMP ?
+    path.join(process.env.RUNNER_TEMP, "get-supported-ghc-ghcup-list.txt") : null;
+
+  if (cacheFile) {
+    try {
+      const cached = fs.readFileSync(cacheFile, "utf-8");
+      githubCore.info("Using cached ghcup list output");
+      return cached;
+    } catch (e: unknown) {
+      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+    }
+  }
+
+  const output = await runCommand("ghcup list -t ghc -r");
+
+  if (cacheFile) {
+    fs.writeFileSync(cacheFile, output);
+  }
+
+  return output;
+}
+
 function parseBound(constraint: string, regex: RegExp, inclusiveOp: string): BaseBound | null {
   const match = constraint.match(regex);
   if (!match) return null;
@@ -51,26 +74,27 @@ function parseBound(constraint: string, regex: RegExp, inclusiveOp: string): Bas
 }
 
 function getUpperBound(constraint: string): BaseBound | null {
-  return parseBound(constraint, /(<=|<)\s*((\d+)(\.(\d+))?(\.(\d+))?)/, "<=");
+  return parseBound(constraint, /(<=|<)\s*((\d+)(\.(\d+))?(\.(\d+))?(\.(\d+))?)/, "<=");
 }
 
 function getLowerBound(constraint: string): BaseBound | null {
-  return parseBound(constraint, /(>=|>)\s*((\d+)(\.(\d+))?(\.(\d+))?)/, ">=");
+  return parseBound(constraint, /(>=|>)\s*((\d+)(\.(\d+))?(\.(\d+))?(\.(\d+))?)/, ">=");
 }
 
-function normalizeVersion(version: string, segments = 3): number[] {
-  const parts = version.split(".").map(Number);
-  while (parts.length < segments) parts.push(0);
-  return parts.slice(0, segments);
+function normalizeVersion(version: string): number[] {
+  return version.split(".").map(Number);
 }
 
 function compareVersions(a: string, b: string): number {
   const pa = normalizeVersion(a);
   const pb = normalizeVersion(b);
+  const len = Math.max(pa.length, pb.length);
 
-  for (let i = 0; i < 3; i++) {
-    if (pa[i] > pb[i]) return 1;
-    if (pa[i] < pb[i]) return -1;
+  for (let i = 0; i < len; i++) {
+    const ai = pa[i] ?? 0;
+    const bi = pb[i] ?? 0;
+    if (ai > bi) return 1;
+    if (ai < bi) return -1;
   }
   return 0;
 }
@@ -149,7 +173,9 @@ async function main(): Promise < void > {
   try {
     const packageYamlPath =
       githubCore.getInput("package-yaml-path") || path.join(process.cwd(), "package.yaml");
-    const validateLowerBound = githubCore.getInput("validate-lower-bound") === "true";
+    const lowerBoundInput = githubCore.getInput("validate-lower-bound");
+    const checkLowerBound = lowerBoundInput === "true" || lowerBoundInput === "warn";
+    const warnLowerBound = lowerBoundInput === "warn";
 
     const {
       bounds: {
@@ -160,23 +186,25 @@ async function main(): Promise < void > {
     } =
     parsePackageYaml(packageYamlPath);
 
-    const ghcupListStr = await runCommand("ghcup list -t ghc -r");
+    const ghcupListStr = await getGhcupList();
     const lines = ghcupListStr.split("\n").filter(Boolean);
 
-    const ghcupList: GhcEntry[] = lines
-      .map((line) => {
-        const match = line.match(/^ghc\s([^\s]+)\s.*?base-([0-9.]+)/);
-        if (!match) return null;
-        return {
-          version: match[1],
-          base: match[2]
-        };
-      })
-      .filter((x): x is GhcEntry => x !== null);
+    const ghcupList: GhcEntry[] = lines.flatMap((line) => {
+      const match = line.match(/^ghc\s([^\s]+)\s.*?base-([0-9.]+)/);
+      if (!match) return [];
+      return [{
+        version: match[1],
+        base: match[2]
+      }];
+    });
 
-    if (ghcupList.length === 0) throw new Error("Failed to get GHC versions from GHCup");
+    if (ghcupList.length === 0) {
+      throw new Error(
+        `Failed to parse GHC versions from ghcup output. Expected lines matching "ghc X.Y.Z ... base-A.B.C", got:\n${ghcupListStr.slice(0, 500)}`
+      );
+    }
 
-    if (validateLowerBound && baseLowerBound && minTestedGhc) {
+    if (checkLowerBound && baseLowerBound && minTestedGhc) {
       const minTestedMajor = ghcMajorVersion(minTestedGhc);
       const breakingVersions = ghcupList.filter((entry) =>
         satisfiesLowerBound(entry.base, baseLowerBound) &&
@@ -184,12 +212,21 @@ async function main(): Promise < void > {
         ghcMajorVersion(entry.version) < minTestedMajor
       );
       if (breakingVersions.length > 0) {
-        breakingVersions.sort((a, b) => compareVersions(b.version, a.version));
-        const oldest = breakingVersions[breakingVersions.length - 1].version;
-        const newest = breakingVersions[0].version;
-        throw new Error(
-          `base lower bound covers GHC ${oldest}..${newest} which have breaking changes relative to minimum tested version ${minTestedGhc}`
-        );
+        let oldest = breakingVersions[0].version;
+        let newest = breakingVersions[0].version;
+        for (const {
+            version
+          }
+          of breakingVersions) {
+          if (compareVersions(version, oldest) < 0) oldest = version;
+          if (compareVersions(version, newest) > 0) newest = version;
+        }
+        const message = `base lower bound covers GHC ${oldest}..${newest} which have breaking changes relative to minimum tested version ${minTestedGhc}`;
+        if (warnLowerBound) {
+          githubCore.warning(message);
+        } else {
+          throw new Error(message);
+        }
       }
     }
 
@@ -204,6 +241,9 @@ async function main(): Promise < void > {
     }
 
     validVersions.sort((a, b) => compareVersions(b.version, a.version));
+
+    const ghcVersionsJson = JSON.stringify(validVersions.map((e) => e.version));
+    githubCore.setOutput("ghc-versions", ghcVersionsJson);
 
     const latestGhc = validVersions[0].version;
 

@@ -12,7 +12,7 @@ inputs:
     required: false
     default: package.yaml
   validate-lower-bound:
-    description: 'Fail if the base lower bound covers GHC major versions with breaking changes below the minimum version in tested-with'
+    description: 'Set to "true" to fail, or "warn" to emit a warning without failing, if the base lower bound covers GHC major versions with breaking changes below the minimum version in tested-with'
     required: false
     default: 'false'
 
@@ -23,3 +23,5 @@ outputs:
     description: 'Deprecated - use max-ghc-version instead'
   min-ghc-version:
     description: The oldest GHC version whose base satisfies the lower bound in package.yaml
+  ghc-versions:
+    description: JSON array of all compatible GHC versions, sorted newest first
