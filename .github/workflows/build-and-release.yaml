@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
-      - run: npm install
+      - run: npm clean-install
       - name: Bump version in package.json if needed
         if: github.event_name == 'workflow_dispatch'
         run: |

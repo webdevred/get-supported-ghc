@@ -41,6 +41,25 @@ async function runCommand(cmd: string): Promise < string > {
   return stdout.trim();
 }
 
+async function getGhcupList(): Promise < string > {
+  const cacheFile = process.env.RUNNER_TEMP
+    ? path.join(process.env.RUNNER_TEMP, "get-supported-ghc-ghcup-list.txt")
+    : null;
+
+  if (cacheFile && fs.existsSync(cacheFile)) {
+    githubCore.info("Using cached ghcup list output");
+    return fs.readFileSync(cacheFile, "utf-8");
+  }
+
+  const output = await runCommand("ghcup list -t ghc -r");
+
+  if (cacheFile) {
+    fs.writeFileSync(cacheFile, output);
+  }
+
+  return output;
+}
+
 function parseBound(constraint: string, regex: RegExp, inclusiveOp: string): BaseBound | null {
   const match = constraint.match(regex);
   if (!match) return null;
@@ -149,7 +168,7 @@ async function main(): Promise < void > {
   try {
     const packageYamlPath =
       githubCore.getInput("package-yaml-path") || path.join(process.cwd(), "package.yaml");
-    const validateLowerBound = githubCore.getInput("validate-lower-bound") === "true";
+    const validateLowerBound = githubCore.getInput("validate-lower-bound");
 
     const {
       bounds: {
@@ -160,7 +179,7 @@ async function main(): Promise < void > {
     } =
     parsePackageYaml(packageYamlPath);
 
-    const ghcupListStr = await runCommand("ghcup list -t ghc -r");
+    const ghcupListStr = await getGhcupList();
     const lines = ghcupListStr.split("\n").filter(Boolean);
 
     const ghcupList: GhcEntry[] = lines
@@ -174,9 +193,13 @@ async function main(): Promise < void > {
       })
       .filter((x): x is GhcEntry => x !== null);
 
-    if (ghcupList.length === 0) throw new Error("Failed to get GHC versions from GHCup");
+    if (ghcupList.length === 0) {
+      throw new Error(
+        `Failed to parse GHC versions from ghcup output. Expected lines matching "ghc X.Y.Z ... base-A.B.C", got:\n${ghcupListStr.slice(0, 500)}`
+      );
+    }
 
-    if (validateLowerBound && baseLowerBound && minTestedGhc) {
+    if ((validateLowerBound === "true" || validateLowerBound === "warn") && baseLowerBound && minTestedGhc) {
       const minTestedMajor = ghcMajorVersion(minTestedGhc);
       const breakingVersions = ghcupList.filter((entry) =>
         satisfiesLowerBound(entry.base, baseLowerBound) &&
@@ -187,9 +210,12 @@ async function main(): Promise < void > {
         breakingVersions.sort((a, b) => compareVersions(b.version, a.version));
         const oldest = breakingVersions[breakingVersions.length - 1].version;
         const newest = breakingVersions[0].version;
-        throw new Error(
-          `base lower bound covers GHC ${oldest}..${newest} which have breaking changes relative to minimum tested version ${minTestedGhc}`
-        );
+        const message = `base lower bound covers GHC ${oldest}..${newest} which have breaking changes relative to minimum tested version ${minTestedGhc}`;
+        if (validateLowerBound === "warn") {
+          githubCore.warning(message);
+        } else {
+          throw new Error(message);
+        }
       }
     }
 
@@ -204,6 +230,9 @@ async function main(): Promise < void > {
     }
 
     validVersions.sort((a, b) => compareVersions(b.version, a.version));
+
+    const ghcVersionsJson = JSON.stringify(validVersions.map((e) => e.version));
+    githubCore.setOutput("ghc-versions", ghcVersionsJson);
 
     const latestGhc = validVersions[0].version;
 

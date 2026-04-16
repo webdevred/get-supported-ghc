@@ -8,6 +8,9 @@ on:
 jobs:
   integration-test:
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -32,21 +35,30 @@ jobs:
       - name: Assert max-ghc-version output
         run: |-
           if [ "${{ steps.ghc-version-inclusive.outputs.max-ghc-version }}" != "9.0.1" ]; then
+            echo "Expected max-ghc-version to be '9.0.1', got '${{ steps.ghc-version-inclusive.outputs.max-ghc-version }}'"
             exit 1
           fi
-        shell: bash
+      - name: Assert ghc-versions output is a non-empty JSON array
+        run: |-
+          echo '${{ steps.ghc-version-inclusive.outputs.ghc-versions }}' | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          assert isinstance(data, list) and len(data) > 0, f'Expected non-empty array, got: {data}'"
+
       - name: Assert deprecated ghc-version output matches max-ghc-version
         run: |-
           if [ "${{ steps.ghc-version-inclusive.outputs.ghc-version }}" != "${{ steps.ghc-version-inclusive.outputs.max-ghc-version }}" ]; then
+            echo "Expected ghc-version '${{ steps.ghc-version-inclusive.outputs.ghc-version }}' to match max-ghc-version '${{ steps.ghc-version-inclusive.outputs.max-ghc-version }}'"
             exit 1
           fi
-        shell: bash
+
       - name: Assert min-ghc-version output is set
         run: |-
           if [ -z "${{ steps.ghc-version-inclusive.outputs.min-ghc-version }}" ]; then
+            echo "Expected min-ghc-version to be set, but it was empty"
             exit 1
           fi
-        shell: bash
+
       - name: Run action with exclusive upper bound
         uses: ./
         with:
@@ -55,9 +67,10 @@ jobs:
       - name: Assert max-ghc-version output
         run: |-
           if [ "${{ steps.ghc-version-exclusive.outputs.max-ghc-version }}" != "8.10.7" ]; then
+            echo "Expected max-ghc-version to be '8.10.7', got '${{ steps.ghc-version-exclusive.outputs.max-ghc-version }}'"
             exit 1
           fi
-        shell: bash
+
       - name: Run action with validate-lower-bound
         uses: ./
         with:
@@ -67,12 +80,26 @@ jobs:
       - name: Assert validate-lower-bound passes and max-ghc-version is set
         run: |-
           if [ -z "${{ steps.ghc-version-validated.outputs.max-ghc-version }}" ]; then
+            echo "Expected max-ghc-version to be set, but it was empty"
             exit 1
           fi
-        shell: bash
+
       - name: Assert min-ghc-version is 9.0.1 for base >= 4.15
         run: |-
           if [ "${{ steps.ghc-version-validated.outputs.min-ghc-version }}" != "9.0.1" ]; then
+            echo "Expected min-ghc-version to be '9.0.1', got '${{ steps.ghc-version-validated.outputs.min-ghc-version }}'"
             exit 1
           fi
-        shell: bash
+      - name: Run action with validate-lower-bound warn
+        uses: ./
+        with:
+          package-yaml-path: examples/package-validate-lower-bound-warn.yaml
+          validate-lower-bound: 'warn'
+        id: ghc-version-warn
+      - name: Assert warn mode sets max-ghc-version despite wide lower bound
+        run: |-
+          if [ -z "${{ steps.ghc-version-warn.outputs.max-ghc-version }}" ]; then
+            echo "Expected max-ghc-version to be set in warn mode, but it was empty"
+            exit 1
+          fi
+

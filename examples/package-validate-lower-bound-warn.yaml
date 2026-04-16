@@ -1,0 +1,14 @@
+name: my-haskell-package
+version: 0.1.0.0
+
+tested-with: GHC == 9.0.1, GHC == 9.2.8
+
+dependencies:
+  - base >= 4.14 && < 4.16
+  - containers
+  - text
+
+library:
+  exposed-modules: MyLib
+  source-dirs: src
+  ghc-options: -Wall
