@@ -43,8 +43,7 @@ async function runCommand(cmd: string): Promise < string > {
 
 async function getGhcupList(): Promise < string > {
   const cacheFile = process.env.RUNNER_TEMP ?
-    path.join(process.env.RUNNER_TEMP, "get-supported-ghc-ghcup-list.txt") :
-    null;
+    path.join(process.env.RUNNER_TEMP, "get-supported-ghc-ghcup-list.txt") : null;
 
   if (cacheFile) {
     try {
@@ -75,26 +74,27 @@ function parseBound(constraint: string, regex: RegExp, inclusiveOp: string): Bas
 }
 
 function getUpperBound(constraint: string): BaseBound | null {
-  return parseBound(constraint, /(<=|<)\s*((\d+)(\.(\d+))?(\.(\d+))?)/, "<=");
+  return parseBound(constraint, /(<=|<)\s*((\d+)(\.(\d+))?(\.(\d+))?(\.(\d+))?)/, "<=");
 }
 
 function getLowerBound(constraint: string): BaseBound | null {
-  return parseBound(constraint, /(>=|>)\s*((\d+)(\.(\d+))?(\.(\d+))?)/, ">=");
+  return parseBound(constraint, /(>=|>)\s*((\d+)(\.(\d+))?(\.(\d+))?(\.(\d+))?)/, ">=");
 }
 
 function normalizeVersion(version: string): number[] {
-  const parts = version.split(".").map(Number);
-  while (parts.length < 3) parts.push(0);
-  return parts.slice(0, 3);
+  return version.split(".").map(Number);
 }
 
 function compareVersions(a: string, b: string): number {
   const pa = normalizeVersion(a);
   const pb = normalizeVersion(b);
+  const len = Math.max(pa.length, pb.length);
 
-  for (let i = 0; i < 3; i++) {
-    if (pa[i] > pb[i]) return 1;
-    if (pa[i] < pb[i]) return -1;
+  for (let i = 0; i < len; i++) {
+    const ai = pa[i] ?? 0;
+    const bi = pb[i] ?? 0;
+    if (ai > bi) return 1;
+    if (ai < bi) return -1;
   }
   return 0;
 }
