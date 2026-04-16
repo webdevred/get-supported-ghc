@@ -42,7 +42,7 @@ jobs:
       - name: Assert ghc-versions output is a non-empty JSON array
         run: |-
           v="${{ steps.ghc-version-inclusive.outputs.ghc-versions }}"
-          if [[ "$v" != \[\"* ]] || [ "$v" = "[]" ]; then
+          if [[ "$v" != \[* ]] || [ "$v" = "[]" ]; then
             echo "Expected ghc-versions to be a non-empty JSON array, got '$v'"
             exit 1
           fi
