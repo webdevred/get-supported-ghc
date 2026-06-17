@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 function parseGitHubOutput(content) {
   const outputs = {};
-  const lines = content.split("\n");
+  const lines = content.split(/\r?\n/);
   let i = 0;
   while (i < lines.length) {
     const heredocMatch = lines[i].match(/^([^<]+)<<(.+)$/);
@@ -15,8 +15,8 @@ function parseGitHubOutput(content) {
       const [, key, delimiter] = heredocMatch;
       const valueLines = [];
       i++;
-      while (i < lines.length && lines[i] !== delimiter) {
-        valueLines.push(lines[i]);
+      while (i < lines.length && lines[i].trimEnd() !== delimiter) {
+        valueLines.push(lines[i].trimEnd());
         i++;
       }
       outputs[key] = valueLines.join("\n");
