@@ -227,15 +227,15 @@ async function main(): Promise < void > {
       }
     }
 
-    const validVersions = baseUpperBound
-      ? ghcupList.filter((ghcEntry) => satisfiesUpperBound(ghcEntry.base, baseUpperBound))
-      : ghcupList;
+    const validVersions = baseUpperBound ?
+      ghcupList.filter((ghcEntry) => satisfiesUpperBound(ghcEntry.base, baseUpperBound)) :
+      ghcupList;
 
     if (validVersions.length === 0) {
       throw new Error(
-        baseUpperBound
-          ? `No GHC version found with base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}`
-          : "No GHC versions found"
+        baseUpperBound ?
+        `No GHC version found with base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}` :
+        "No GHC versions found"
       );
     }
 
@@ -247,9 +247,9 @@ async function main(): Promise < void > {
     const latestGhc = validVersions[0].version;
 
     githubCore.info(
-      baseUpperBound
-        ? `Latest GHC under base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}: ${latestGhc}`
-        : `Latest GHC (no upper base bound): ${latestGhc}`
+      baseUpperBound ?
+      `Latest GHC under base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}: ${latestGhc}` :
+      `Latest GHC (no upper base bound): ${latestGhc}`
     );
 
     githubCore.setOutput("max-ghc-version", latestGhc);
