@@ -18,7 +18,7 @@ interface BaseBound {
 
 interface BaseBounds {
   lower: BaseBound | null;
-  upper: BaseBound;
+  upper: BaseBound | null;
 }
 
 interface PackageYaml {
@@ -143,12 +143,9 @@ function parsePackageYaml(packageYamlPath: string): ParsedPackageYaml {
   if (!baseDep) throw new Error("No base dependency found in package.yaml");
 
   const constraint = typeof baseDep === "string" ? baseDep : baseDep.version;
-  const upper = getUpperBound(constraint);
-  if (!upper) throw new Error("No upper bound for base found in package.yaml");
-
   const bounds: BaseBounds = {
     lower: getLowerBound(constraint),
-    upper
+    upper: getUpperBound(constraint)
   };
 
   const testedWithRaw = parsed["tested-with"];
@@ -230,13 +227,15 @@ async function main(): Promise < void > {
       }
     }
 
-    const validVersions = ghcupList.filter((ghcEntry) =>
-      satisfiesUpperBound(ghcEntry.base, baseUpperBound)
-    );
+    const validVersions = baseUpperBound
+      ? ghcupList.filter((ghcEntry) => satisfiesUpperBound(ghcEntry.base, baseUpperBound))
+      : ghcupList;
 
     if (validVersions.length === 0) {
       throw new Error(
-        `No GHC version found with base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}`
+        baseUpperBound
+          ? `No GHC version found with base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}`
+          : "No GHC versions found"
       );
     }
 
@@ -248,7 +247,9 @@ async function main(): Promise < void > {
     const latestGhc = validVersions[0].version;
 
     githubCore.info(
-      `Latest GHC under base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}: ${latestGhc}`
+      baseUpperBound
+        ? `Latest GHC under base ${boundOp(baseUpperBound, "<")} ${baseUpperBound.version}: ${latestGhc}`
+        : `Latest GHC (no upper base bound): ${latestGhc}`
     );
 
     githubCore.setOutput("max-ghc-version", latestGhc);

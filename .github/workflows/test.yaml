@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  integration-test:
+  test:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -107,3 +107,17 @@ jobs:
             exit 1
           fi
 
+      - name: Run action with no upper bound
+        uses: ./
+        with:
+          package-yaml-path: examples/package-no-upper-bound.yaml
+        id: ghc-version-no-upper
+      - name: Assert max-ghc-version is set when no upper bound
+        run: |-
+          v="${{ steps.ghc-version-no-upper.outputs.max-ghc-version }}"
+          if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9] ]]; then
+            echo "Expected max-ghc-version to be a valid version, got '$v'"
+            exit 1
+          fi
+
+      - run: npm test
