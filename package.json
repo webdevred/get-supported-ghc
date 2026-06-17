@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --outfile=dist/index.js",
-    "format": "js-beautify -r ./**/*.ts ./package.json"
+    "format": "js-beautify -r ./**/*.ts ./package.json",
+    "test": "npm run build --silent && node test.mjs"
   },
   "dependencies": {
     "@actions/core": "^3.0.1",
