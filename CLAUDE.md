@@ -5,6 +5,7 @@
 ```bash
 npm clean-install
 npm run build      # Bundles src/index.ts → dist/index.js via esbuild
+npm test           # Builds, then runs action.test.mjs with vitest — needs ghcup on PATH
 npm run format     # Format with js-beautify — enforced in CI, run before committing
 ```
 
@@ -26,7 +27,7 @@ Suggestions are welcome across all layers:
 
 ## Testing
 
-No unit test framework, and none should be added. All tests are integration tests that run the action end-to-end using fixture files in `examples/`. To cover new behaviour, add a fixture under `examples/` and a corresponding step in `test.yaml`, following the existing pattern.
+Tests run with vitest. All tests are integration tests that run the action end-to-end: each one starts `dist/index.js` as its own process against a fixture file in `examples/`, which is why `npm test` builds first. To cover new behaviour, add a fixture under `examples/` and a corresponding `test` in `action.test.mjs`, following the existing pattern.
 
 ## Ideas Worth Considering
 
